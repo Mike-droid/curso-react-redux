@@ -298,3 +298,374 @@ JSX carga la vista, llama al **action creator** gracias al `this.props.functionN
 ### Práctica: ciclo completo de Redux
 
 Resumen de lo que escribí arriba.
+
+## Fases Extra
+
+### Archivos Types
+
+Estas fases no son obligatorias pero sí son altamente recomendables al utiliza Redux.
+
+Le damos más robustes al proyecto con la siguiente estrutura:
+
+Creamos una carpeta "types" justo dentro de src, y creamos el archivo "usuariosTypes.js" (para este ejemplo).
+
+```js
+export const TRAER_TODOS = 'traer_todos';
+```
+
+Vamos a hacer referencia a este archivo en el archivo de actions y reducers:
+
+usuariosActions.js:
+
+```js
+import axios from 'axios';
+import { TRAER_TODOS } from '../types/usuariosTypes';
+
+//*Esto es una promesa por estar haciendo una petición HTTP GET
+export const traerTodos = () =>  async (dispatch) => { //* Función que retorna otra función
+  const respuesta = await axios.get('https://jsonplaceholder.typicode.com/users');
+  dispatch({ //* Este dispatch se comunicará con el reducer
+    type: TRAER_TODOS,
+    payload: respuesta.data,
+  });
+}
+
+```
+
+usuariosReducers.js:
+
+```js
+import { TRAER_TODOS } from '../types/usuariosTypes';
+
+const INITIAL_STATE = {
+  usuarios: [],
+};
+
+export default (state = INITIAL_STATE, action) => { //* El estado es el initial state que regresa una función
+  //!Se crea el switch porque llegarán varias tareas y solo se distingue por el nombre
+  switch(action.type) {
+    case TRAER_TODOS:
+      return { ...state, usuarios: action.payload }
+    default: return state;
+  }
+}
+```
+
+Esto es una excelente práctica.
+
+### Try Catch
+
+El try catch no podía quedarse afuera, esto es para manejar las execepciones y cuando traemos información de una API es obligatorio
+usarlo por buenas prácticas.
+
+usuariosActions.js:
+
+```js
+export const traerTodos = () =>  async (dispatch) => { //* Función que retorna otra función
+  try {
+    const respuesta = await axios.get('https://jsonplaceholder.typicode.com/users');
+    dispatch({ //* Este dispatch se comunicará con el reducer
+      type: TRAER_TODOS,
+      payload: respuesta.data,
+    });
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+  }
+}
+```
+
+### Escenarios asíncronos
+
+Siempre debemos de manejar los casos de:
+
+1. Cuando está cargando
+2. Cuando fue exitoso
+3. Cuando hay un error
+
+Nuestro sitio está cargando información cuando entramos a una página.
+
+Lo que haremos es mostrar cuando la información está cargando, cuando hay éxito y cuando hay error:
+
+usuariosTypes.js:
+
+```js
+export const TRAER_TODOS = 'traer_todos';
+export const CARGANDO = 'cargando';
+export const ERROR = 'error';
+```
+
+usuariosReducers.js:
+
+```js
+import { TRAER_TODOS, CARGANDO, ERROR } from '../types/usuariosTypes';
+
+const INITIAL_STATE = {
+  usuarios: [],
+  cargando: false,
+  error: ''
+};
+
+export default (state = INITIAL_STATE, action) => { //* El estado es el initial state que regresa una función
+  //!Se crea el switch porque llegarán varias tareas y solo se distingue por el nombre
+  switch(action.type) {
+    case TRAER_TODOS:
+      return { ...state, usuarios: action.payload, cargando: false };
+    case CARGANDO:
+      return { ...state, cargando: true};
+    case ERROR:
+      return { ...state, error: action.payload, cargando: false };
+    default: return state;
+  }
+}
+```
+
+usuariosActions.js:
+
+```js
+import axios from 'axios';
+import { TRAER_TODOS, CARGANDO, ERROR } from '../types/usuariosTypes';
+
+//*Esto es una promesa por estar haciendo una petición HTTP GET
+export const traerTodos = () =>  async (dispatch) => { //* Función que retorna otra función
+  dispatch({
+    type: CARGANDO
+  });
+
+  try {
+    const respuesta = await axios.get('https://jsonplaceholder.typicode.com/users');
+    dispatch({ //* Este dispatch se comunicará con el reducer
+      type: TRAER_TODOS,
+      payload: respuesta.data,
+    });
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    dispatch({
+      type: ERROR,
+      payload: error.message,
+    })
+  }
+}
+```
+
+### Componente Spinner
+
+[Pure CSS Loader](https://loading.io/css)
+
+Le vamos a decir al usuario que la información está cargando con el uso de animaciones.
+
+Podemos tomar de la página web cualquier Spinner o Loader que querramos en nuestro proyecto.
+
+Copiamos el código CSS y este lo guardaremos como un componente, así que creamos una carpeta "css" y dentro
+hacemos el archivo "loader.css".
+
+Luego copiamos el código HTML, esté será guardado dentro la carpeta "General", dentro de la carpeta "components".
+
+Loader.js:
+
+```js
+import React from 'react';
+import '../../css/loader.css';
+
+const Loader = (props) => (
+  <div className="center">
+    // Código del Loader
+  </div>
+);
+
+export default Loader;
+```
+
+Modificamos el archivo index.js de la carpeta users:
+
+```js
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import Loader from '../General/Loader';
+import * as usuariosActions from '../../actions/usuariosActions';
+
+class Users extends Component {
+
+  componentDidMount() {
+    this.props.traerTodos();
+  }
+
+  ponerContenido = () => {
+    if (this.props.cargando) {
+      return <Loader />;
+    }
+
+    return(
+      <table className="tabla">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Correo</th>
+            <th>Enlace</th>
+          </tr>
+        </thead>
+        <tbody>
+          { this.ponerFilas() }
+        </tbody>
+      </table>
+    )
+  }
+
+  //* Por cada usuario, tendré una fila
+  ponerFilas = () => this.props.usuarios.map((usuario) => (
+    <tr key={ usuario.id }>
+      <td>{ usuario.name }</td>
+      <td>{ usuario.email }</td>
+      <td>{ usuario.website }</td>
+  </tr>
+  ))
+
+  render(){
+    return (
+      <div>
+        { this.ponerContenido() }
+      </div>
+    )
+  }
+
+}
+
+const mapStateToProps = (reducers) => {
+  return reducers.usuariosReducers;
+}
+
+export default connect(mapStateToProps, usuariosActions)(Users);
+```
+
+Con esto tenemos un Loader que se va a mostrar cuando estamos cargando información.
+
+### Componente Fatal
+
+Creamos el componente para mostrar un mensaje de error.
+
+El componente se llamará "Fatal.js" y estará dentro de la carpeta "components".
+
+```js
+import React from 'react'
+
+const Fatal = (props) => (
+  <h2 className="center rojo">
+    { props.mensaje }
+  </h2>
+)
+
+export default Fatal
+```
+
+En el index.js de los usuarios:
+
+```js
+if (this.props.error) {
+  return <Fatal mensaje={ this.props.error } />;
+}
+```
+
+En usuariosActions.js podemos dar un mensaje personalizado:
+
+```js
+dispatch({
+  type: ERROR,
+  payload: 'Algo salió mal. Intente más tarde.',
+})
+```
+
+### Tabla como componente
+
+El `this` solamente se utiliza cuando estamos en un componente clase.
+
+Creamos un componente llamado 'Tabla.js':
+
+```js
+import React from 'react'
+import { connect } from 'react-redux'
+
+const Tabla = (props) => {
+  /* Por cada usuario, tendré una fila */
+  const ponerFilas = () => props.usuarios.map((usuario) => (
+    <tr key={ usuario.id }>
+			<td>
+				{ usuario.name }
+			</td>
+			<td>
+				{ usuario.email }
+			</td>
+			<td>
+				{ usuario.website }
+			</td>
+		</tr>
+  ))
+
+  return (
+    <div>
+      <table className="tabla">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Correo</th>
+            <th>Enlace</th>
+          </tr>
+        </thead>
+        <tbody>
+          { ponerFilas() }
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const mapStateToProps = (reducers) => {
+  return reducers.usuariosReducer
+}
+
+export default connect(mapStateToProps)(Tabla)
+```
+
+Modificamos el index.js de los usuarios:
+
+```js
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import Loader from '../General/Loader';
+import Fatal from '../General/Fatal';
+import Tabla from './Tabla';
+import * as usuariosActions from '../../actions/usuariosActions';
+
+class Users extends Component {
+
+  componentDidMount() {
+    this.props.traerTodos();
+  }
+
+  ponerContenido = () => {
+    if (this.props.cargando) {
+      return <Loader />;
+    }
+
+    if (this.props.error) {
+      return <Fatal mensaje={ this.props.error } />;
+    }
+
+    return <Tabla usuarios={this.props.usuarios} />;
+  }
+
+  render(){
+    return (
+      <div>
+        <h1>Usuarios</h1>
+        { this.ponerContenido() }
+      </div>
+    )
+  }
+
+}
+
+const mapStateToProps = (reducers) => {
+  return reducers.usuariosReducers;
+}
+
+export default connect(mapStateToProps, usuariosActions)(Users);
+```

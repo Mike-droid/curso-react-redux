@@ -1,5 +1,8 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
+import Loader from '../General/Loader';
+import Fatal from '../General/Fatal';
+import Tabla from './Tabla';
 import * as usuariosActions from '../../actions/usuariosActions';
 
 class Users extends Component {
@@ -8,36 +11,23 @@ class Users extends Component {
     this.props.traerTodos();
   }
 
-  //* Por cada usuario, tendré una fila
-  ponerFilas = () => this.props.usuarios.map((usuario) => (
-    <tr key={ usuario.id }>
-			<td>
-				{ usuario.name }
-			</td>
-			<td>
-				{ usuario.email }
-			</td>
-			<td>
-				{ usuario.website }
-			</td>
-		</tr>
-  ))
+  ponerContenido = () => {
+    if (this.props.cargando) {
+      return <Loader />;
+    }
+
+    if (this.props.error) {
+      return <Fatal mensaje={ this.props.error } />;
+    }
+
+    return <Tabla usuarios={this.props.usuarios} />;
+  }
 
   render(){
     return (
       <div>
-        <table className="tabla">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Correo</th>
-            <th>Enlace</th>
-          </tr>
-        </thead>
-        <tbody>
-          { this.ponerFilas() }
-        </tbody>
-      </table>
+        <h1>Usuarios</h1>
+        { this.ponerContenido() }
       </div>
     )
   }
