@@ -10,7 +10,7 @@ export default (state = INITIAL_STATE, action) => { //* El estado es el initial 
   //!Se crea el switch porque llegarán varias tareas y solo se distingue por el nombre
   switch(action.type) {
     case TRAER_TODOS:
-      return { ...state, usuarios: action.payload, cargando: false };
+      return { ...state, usuarios: action.payload, cargando: false, error: '' };
     case CARGANDO:
       return { ...state, cargando: true};
     case ERROR:

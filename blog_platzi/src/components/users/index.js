@@ -8,7 +8,9 @@ import * as usuariosActions from '../../actions/usuariosActions';
 class Users extends Component {
 
   componentDidMount() {
-    this.props.traerTodos();
+    if (!this.props.usuarios.length) {
+      this.props.traerTodos();
+    }
   }
 
   ponerContenido = () => {
@@ -24,6 +26,7 @@ class Users extends Component {
   }
 
   render(){
+    console.log(this.props);
     return (
       <div>
         <h1>Usuarios</h1>

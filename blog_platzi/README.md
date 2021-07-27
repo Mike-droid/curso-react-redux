@@ -669,3 +669,328 @@ const mapStateToProps = (reducers) => {
 
 export default connect(mapStateToProps, usuariosActions)(Users);
 ```
+
+## Compartir información en Redux
+
+### Introducción a Compartir información en Redux
+
+### Parámetros por URL
+
+[Iconos - CSS ICON animate](https://cssicon.space/#/)
+
+Creamos la carpeta "Publicaciones" dentro de "components":
+
+Dentro de ella tendremos el archivo index.js:
+
+```js
+import React, { Component } from 'react'
+
+export default class Publicaciones extends Component {
+  render() {
+    return (
+      <div>
+        { this.props.match.params.key }
+        {/*  Usamos this porque es una clase */}
+      </div>
+    )
+  }
+}
+
+```
+
+Conseguimos un CSS como icono:
+
+```html
+<div className="eye-solid icon"></div>
+```
+
+```css
+.eye-solid.icon {
+  color: #000;
+  /* position: absolute; */
+  margin-left: 3px;
+  margin-top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 70% 15%;
+  border: solid 1px currentColor;
+  -webkit-transform: rotate(45deg);
+          transform: rotate(45deg);
+}
+
+.eye-solid.icon:before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: solid 1px currentColor;
+  background-color: currentColor;
+}
+```
+
+Usaremos esto en la tabla.js.
+
+Creamos una nueva ruta en el index.js de src:
+
+```js
+<Route exact path="/publicaciones/:key" component = {Publicaciones} />
+```
+
+Con el `:key` indicamos que ese parámetro se pasará por la URL.
+
+### Compartir Reducer
+
+### Mútiples Reducers
+
+[Posts de JSON Placeholder](http://jsonplaceholder.typicode.com/posts)
+
+### Llamando a mútiples reducers en una acción
+
+Un error muy común es que estamos llamando a una acción, pero nos está modificando algo que no debería.
+
+Ya tenemos publicacionesActions.js:
+
+```js
+import axios from "axios";
+import { TRAER_TODOS, CARGANDO, ERROR } from '../types/publicacionesTypes';
+
+export const traerTodos = () => async (dispatch) => {
+  dispatch({
+    type: CARGANDO
+  });
+
+  try {
+    const respuesta = await axios.get('http://jsonplaceholder.typicode.com/posts')
+    dispatch({
+      type: TRAER_TODOS,
+      payload: respuesta.data
+    })
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    dispatch({
+      type: ERROR,
+      payload: 'Algo salió mal. Intente más tarde.',
+    })
+  }
+}
+```
+
+Cambiamos index.js de publicaciones:
+
+```js
+import React, { Component } from 'react'
+import { connect } from 'react-redux'
+
+import * as usuariosActions from '../../actions/usuariosActions';
+import * as publicacionesActions from '../../actions/publicacionesActions';
+
+//! Destructuramos y renombramos las funciones
+const { traerTodos: usuariosTraerTodos } = usuariosActions;
+const { traerTodos: publicacionesTraerTodos } = publicacionesActions;
+
+class Publicaciones extends Component {
+  componentDidMount() {
+    if (!this.props.usuariosReducers.usuarios.length) {
+      this.props.usuariosTraerTodos()
+    }
+  }
+
+  render() {
+    console.log(this.props)
+    return (
+      <div>
+        <h1>Publicaciones de </h1>
+        { this.props.match.params.key }
+        {/*  Usamos this porque es una clase */}
+      </div>
+    )
+  }
+}
+
+const mapStateToProps = ({usuariosReducers, publicacionesReducer}) => {
+  return {
+    usuariosReducers,
+    publicacionesReducer
+  }
+}
+
+const mapDispatchToProps = {
+  usuariosTraerTodos,
+  publicacionesTraerTodos
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Publicaciones)
+```
+
+publicacionesReducer.js:
+
+```js
+import { TRAER_TODOS, CARGANDO, ERROR } from '../types/publicacionesTypes';
+
+const INITIAL_STATE = {
+  publicaciones: [],
+  cargando: false,
+  error: ''
+};
+
+export default (state = INITIAL_STATE, action) => { //* El estado es el initial state que regresa una función
+  //!Se crea el switch porque llegarán varias tareas y solo se distingue por el nombre
+  switch(action.type) {
+    case TRAER_TODOS:
+      return { ...state, publicaciones: action.payload, cargando: false };
+    case CARGANDO:
+      return { ...state, cargando: true};
+    case ERROR:
+      return { ...state, error: action.payload, cargando: false };
+    default: return state;
+  }
+}
+```
+
+publicacionesTypes.js:
+
+```js
+export const TRAER_TODOS = 'publicaciones_traer_todos';
+export const CARGANDO = 'publicaciones_cargando';
+export const ERROR = 'publicaciones_error';
+```
+
+### Uso del estado en acción
+
+### Evitar segundas búsquedas
+
+### Inmutabilidad
+
+### Evitar sobreescritura
+
+Destructurando:
+
+```js
+const {
+  //* Vamos a destructurar cosas que no tengan que ver con el estado
+  usuariosTraerTodos,
+  publicacionesTraerPorUsuario,
+  match: { params: { key } }
+} = this.props;
+```
+
+### Validación compuesta
+
+### Validación de errores
+
+Ya estamos manejando mejor las publicacionesActions.js:
+
+```js
+import axios from "axios";
+import { TRAER_POR_USUARIO, CARGANDO, ERROR } from '../types/publicacionesTypes';
+import * as usuariosTypes from '../types/usuariosTypes';
+
+const { TRAER_TODOS: USUARIOS_TRAER_TODOS } = usuariosTypes;
+
+export const traerPorUsuario = (key) => async (dispatch, getState) => {
+
+  dispatch({ type: CARGANDO });
+
+  const { usuarios } = getState().usuariosReducers;
+  const { publicaciones } = getState().publicacionesReducer;
+  const usuario_id = usuarios[key].id;
+
+  try {
+    const respuesta = await axios.get(`http://jsonplaceholder.typicode.com/posts?userId=${usuario_id}`);
+
+    const publicaciones_actualizadas = [
+      ...publicaciones,
+      respuesta.data
+    ];
+
+    dispatch({
+      type: TRAER_POR_USUARIO,
+      payload: publicaciones_actualizadas
+    });
+
+    //* Última publicación de usuario
+    const publicaciones_key = publicaciones_actualizadas.length - 1;
+
+    const usuarios_actualizados = [...usuarios];
+      usuarios_actualizados[key] = {
+        ...usuarios[key],
+        publicaciones_key
+      }
+
+    dispatch({
+      type: USUARIOS_TRAER_TODOS,
+      payload: usuarios_actualizados
+    });
+
+  } catch (error) {
+    console.log(error.message);
+    dispatch({
+      type: ERROR,
+      payload: 'Publicaciones no disponibles'
+    });
+  }
+}
+```
+
+### Modificando respuesta de url
+
+### Estado con interacción
+
+index.js de usuarios:
+
+```js
+mostrarInfo = (publicaciones, pub_key) => (
+    publicaciones.map((publicacion, comentario_key) => (
+      <div
+        className = "pub_titulo"
+        key = {publicacion.id}
+        onClick = {() => {
+          this.props.abrirCerrar(pub_key, comentario_key);
+        }}
+      >
+        <h2>{publicacion.title}</h2>
+        <h3>{publicacion.body}</h3>
+        {
+          publicacion.abierto ? 'abierto' : 'cerrado'
+        }
+      </div>
+    ))
+  );
+```
+
+publicacionesActions.js:
+
+```js
+export const abrirCerrar = (pub_key, comentario_key) => (dispatch, getState) => {
+  //* Traer el estado actual y modificar el "abiero" a "cerrado" y vicecersa
+  const { publicaciones } = getState().publicacionesReducer;
+  const seleccionada = publicaciones[pub_key][comentario_key];
+
+  const actualizada = {
+    ...seleccionada,
+    abierto: !seleccionada.abierto
+  };
+
+  const publicaciones_actualizadas = [...publicaciones];
+  publicaciones_actualizadas[pub_key] = [...publicaciones[pub_key]];
+  publicaciones_actualizadas[pub_key][comentario_key] = actualizada;
+
+  dispatch({
+    type: ACTUALIZAR,
+    payload: publicaciones_actualizadas
+  });
+}
+```
+
+### Mostrar componentes dinamicamente
+
+### LLamadas asincronas dinámicas
+
+### Props por herencia vs estado
+
+### Estado compartido
+
+Mandar parámetros por reducer tiene más prioridad que un componente.
