@@ -994,3 +994,358 @@ export const abrirCerrar = (pub_key, comentario_key) => (dispatch, getState) => 
 ### Estado compartido
 
 Mandar parámetros por reducer tiene más prioridad que un componente.
+
+## Métodos HTTP
+
+### Introducción a métodos HTTP
+
+### Nuevo ciclo Redux
+
+Creamos la carpeta "Tareas" dentro de components.
+
+Su archivo index.js:
+
+```js
+import React, { Component } from 'react'
+import { connect } from 'react-redux'
+import * as tareasActions from './../../actions/tareasActions'
+
+class Tareas extends Component {
+  componentDidMount(){
+    this.props.traerTodas();
+  }
+  render() {
+    console.log(this.props);
+    return (
+      <div>
+        ¡Tareas!
+      </div>
+    )
+  }
+}
+
+const mapStateToProps = ({ tareasReducer }) => tareasReducer;
+
+export default connect(mapStateToProps, tareasActions)(Tareas);
+```
+
+Creamos el archivo tareasTypes.js:
+
+```js
+export const TRAER_TODAS = 'tareas_traer_todas';
+export const CARGANDO = 'tareas_cargando';
+export const ERROR = 'tareas_error';
+```
+
+Creamos su reducer, tareasReducer.js:
+
+```js
+import { TRAER_TODAS, CARGANDO, ERROR } from '../types/tareasTypes';
+
+const INITIAL_STATE = {
+  tareas: {},
+  cargando: false,
+  error: ''
+};
+
+// eslint-disable-next-line import/no-anonymous-default-export
+export default (state = INITIAL_STATE, action) => { //* El estado es el initial state que regresa una función
+  //!Se crea el switch porque llegarán varias tareas y solo se distingue por el nombre
+  switch(action.type) {
+    case TRAER_TODAS:
+      return { ...state, tareas: action.payload, cargando: false, error: '' };
+    case CARGANDO:
+      return { ...state, cargando: true};
+    case ERROR:
+      return { ...state, error: action.payload, cargando: false };
+    default: return state;
+  }
+}
+```
+
+Creamos sus acciones, tareasActions.js:
+
+```js
+import axios from 'axios';
+import { TRAER_TODAS, CARGANDO, ERROR } from '../types/tareasTypes';
+
+//*Esto es una promesa por estar haciendo una petición HTTP GET
+export const traerTodas = () =>  async (dispatch) => { //* Función que retorna otra función
+  dispatch({
+    type: CARGANDO
+  });
+
+  try {
+    const respuesta = await axios.get('https://jsonplaceholder.typicode.com/todos');
+    dispatch({ //* Este dispatch se comunicará con el reducer
+      type: TRAER_TODAS,
+      payload: respuesta.data,
+    });
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    dispatch({
+      type: ERROR,
+      payload: 'Información de tareas no disponible',
+    })
+  }
+}
+```
+
+Y agregamos esto al index.js de reducers:
+
+```js
+import { combineReducers } from "redux";
+import usuariosReducers from "./usuariosReducers";
+import publicacionesReducer from "./publicacionesReducer";
+import tareasReducer from "./tareasReducer";
+
+export default combineReducers({
+  usuariosReducers,
+  publicacionesReducer,
+  tareasReducer
+});
+```
+
+### Normalizar datos
+
+en tareasActions.js:
+
+```js
+const respuesta = await axios.get('https://jsonplaceholder.typicode.com/todos');
+
+const tareas = {};
+respuesta.data.map((task) => (
+  tareas[task.userId] = { //* Al objeto vacío de tareas le agregamos un atributo, el task.userId
+    ...tareas[task.userId], //*Lo hacemos inmutable
+    [task.id]: {
+      ...task
+    }
+  }
+));
+```
+
+### Mapear Objetos
+
+### Componente para agregar tarea
+
+Creamos el archivo Guardar.js en la carpeta "Tareas":
+
+```js
+import React, { Component } from 'react'
+
+class Guardar extends Component {
+  render() {
+    return (
+      <div>
+        <h1>Guardar tarea</h1>
+        Usuario id:
+        <input type="number"/>
+        <br></br>
+        <br></br>
+        Título:
+        <input type="text"/>
+        <br></br>
+        <br></br>
+        <button>Guardar</button>
+      </div>
+    )
+  }
+}
+
+export default Guardar;
+```
+
+Actualizamos App.js:
+
+```js
+import React from 'react'
+import { BrowserRouter, Route, Switch } from 'react-router-dom'
+import Menu from './Menu'
+import Users from './users/index'
+import Tareas from './Tareas/index'
+import Publicaciones from './Publicaciones'
+import Guardar from './Tareas/Guardar'
+
+const App = () => (
+  <BrowserRouter>
+    <Menu />
+    <Switch>
+      <div className="margen">
+        <Route exact path="/" component = {Users} />
+        <Route exact path="/tareas" component = {Tareas} />
+        <Route exact path="/publicaciones/:key" component = {Publicaciones} />
+        <Route exact path="/tareas/guardar" component = {Guardar} />
+      </div>
+    </Switch>
+  </BrowserRouter>
+)
+
+export default App
+```
+
+### Manejar inputs con Reducer
+
+tareasActions.js:
+
+```js
+import axios from 'axios';
+import { TRAER_TODAS, CARGANDO, ERROR } from '../types/tareasTypes';
+
+//*Esto es una promesa por estar haciendo una petición HTTP GET
+export const traerTodas = () =>  async (dispatch) => { //* Función que retorna otra función
+  dispatch({
+    type: CARGANDO
+  });
+
+  try {
+    const respuesta = await axios.get('https://jsonplaceholder.typicode.com/todos');
+
+    const tareas = {};
+    respuesta.data.map((task) => (
+      tareas[task.userId] = { //* Al objeto vacío de tareas le agregamos un atributo, el task.userId
+        ...tareas[task.userId], //*Lo hacemos inmutable
+        [task.id]: {
+          ...task
+        }
+      }
+    ));
+
+    dispatch({ //* Este dispatch se comunicará con el reducer
+      type: TRAER_TODAS,
+      payload: tareas,
+    });
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    dispatch({
+      type: ERROR,
+      payload: 'Información de tareas no disponible',
+    })
+  }
+}
+
+export const cambioUsuarioId = (usuario_id) => (dispatch) => {
+  dispatch({
+    type: 'CAMBIO_USUARIO_ID',
+    payload: usuario_id
+  })
+}
+
+export const cambioTitulo = (titulo) => (dispatch) => {
+  dispatch({
+    type: 'cambio_titulo',
+    payload: titulo
+  })
+}
+```
+
+tareasReducer.js:
+
+```js
+import { TRAER_TODAS, CARGANDO, ERROR } from '../types/tareasTypes';
+
+const INITIAL_STATE = {
+  tareas: {},
+  cargando: false,
+  error: '',
+  usuario_id: '',
+  titulo: ''
+};
+
+// eslint-disable-next-line import/no-anonymous-default-export
+export default (state = INITIAL_STATE, action) => { //* El estado es el initial state que regresa una función
+  //!Se crea el switch porque llegarán varias tareas y solo se distingue por el nombre
+  switch(action.type) {
+    case TRAER_TODAS:
+      return { ...state, tareas: action.payload, cargando: false, error: '' };
+    case CARGANDO:
+      return { ...state, cargando: true};
+    case ERROR:
+      return { ...state, error: action.payload, cargando: false };
+    case 'CAMBIO_USUARIO_ID':
+      return { ...state, usuario_id: action.payload };
+    case 'cambio_titulo':
+      return { ...state, titulo: action.payload };
+    default: return state;
+  }
+}
+```
+
+Guardar.js:
+
+```js
+import React, { Component } from 'react'
+import { connect } from 'react-redux'
+import * as tareasActions from '../../actions/tareasActions'
+
+class Guardar extends Component {
+
+  cambioUsuarioId = (event) => {
+    this.props.cambioUsuarioId(event.target.value);
+  }
+
+  cambioTitulo = (event) => {
+    this.props.cambioTitulo(event.target.value);
+  }
+
+  render() {
+    return (
+      <div>
+        <h1>Guardar tarea</h1>
+        Usuario id:
+        <input
+          type="number"
+          value={this.props.usuario_id}
+          onChange={this.cambioUsuarioId} />
+
+        <br></br> <br></br>
+
+        Título:
+        <input
+          type="text"
+          value={this.props.titulo}
+          onChange={this.cambioTitulo} />
+
+        <br></br> <br></br>
+
+        <button>Guardar</button>
+      </div>
+    )
+  }
+}
+
+const mapStateToProps = ({tareasReducer}) => tareasReducer;
+
+export default connect(mapStateToProps, tareasActions)(Guardar);
+```
+
+### POST
+
+### Deshabilitando botón
+
+### Redireccionar
+
+```js
+import { Redirect } from 'react-router-dom'
+
+{
+  this.props.regresar ? <Redirect to="tareas/" /> : ''
+}
+```
+
+### Reutilizar componentes
+
+### PUT
+
+[Inmutabilidad en Redux](https://redux.js.org/usage/structuring-reducers/immutable-update-patterns#correct-approach-copying-all-levels-of-nested-data)
+
+### DELETE
+
+## Conclusión
+
+### Conocimientos adquiridos
+
+[Repostorio de Redux con apuntes en modo resumen](https://github.com/jocode/redux-react)
+
+### Qué hacer a continuación
+
+Nunca parar de aprender.
